@@ -10,22 +10,22 @@
 
 #define BRDSZ 10
 #define MAXBRDS 200000
-#define OFFSET_2 2
+#define EXTRASPACE 2
 
-// 一维数组表示的棋盘结构
+
 typedef struct board {
-    char tiles[BRDSZ * BRDSZ]; // 一维数组存储棋盘
-    char hawk; // 鹰格子
-    int width; // 棋盘宽度
-    int height; // 棋盘高度
-    int parent; // 父节点索引
-    int move_col; // 移动的列
+    char tiles[BRDSZ * BRDSZ]; 
+    char hawk; 
+    int moveCol;
+    int parent;
+    int width; 
+    int height;  
 } board;
 
 typedef struct state {
-    board boards[MAXBRDS]; // 棋盘数组
-    int f; // 当前处理的索引
-    int r; // 最后一个棋盘的索引
+    board boards[MAXBRDS]; 
+    int r; 
+    int f;
 } state;
 
 
