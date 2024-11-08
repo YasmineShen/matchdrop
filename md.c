@@ -163,10 +163,10 @@ bool allMatched(const board* b){
     }
 
     // to check whether the characters in each column are the same
-    for(int col = 0; col < b->width; col++){
-        char flagChar = b->tiles[col];
-        for(int row = 1; row < b->height; row++){
-            if(b->tiles[row * b->width + col] != flagChar){
+    for(int j = 0; j < b->width; j++){
+        char flagChar = b->tiles[j];
+        for(int i = 1; i < b->height; i++){
+            if(b->tiles[i * b->width + j] != flagChar){
                 return false;
             }
         }
@@ -205,20 +205,20 @@ bool repeatedBoard(const state* s, const board* newBoard){
 }
 
 
-void fallHawk(board* newBoard, const board* cur, int col){
+void fallHawk(board* newBoard, const board* cur, int j){
     memcpy(newBoard, cur, sizeof(board));
-    newBoard->moveCol = col;
+    newBoard->moveCol = j;
 
     //to save the bottom element
-    char bottom = cur->tiles[(cur->height-1) * cur->width + col];
+    char bottom = cur->tiles[(cur->height-1) * cur->width + j];
 
     //move the column down
-    for(int row = cur->height-1; row > 0; row--){
-        newBoard->tiles[row * cur->width + col] = cur->tiles[(row-1) * cur->width + col];
+    for(int i = cur->height-1; i > 0; i--){
+        newBoard->tiles[i * cur->width + j] = cur->tiles[(i-1) * cur->width + j];
     }
 
     //put the hawk to the top
-    newBoard->tiles[col] = cur->hawk;
+    newBoard->tiles[j] = cur->hawk;
     newBoard->hawk = bottom;
 }
 
@@ -241,10 +241,10 @@ void printOutput(const state* s, int endIndex){
     }
 
     // print it by order
-    for(int i = length - 1; i >= 0; i--){
-        for(int row = 0; row < s->boards[output[i]].height; row++){
-            for(int col = 0; col < s->boards[output[i]].width; col++){
-                printf("%c", s->boards[output[i]].tiles[row * s->boards[output[i]].width + col]);
+    for(int k = length - 1; k >= 0; k--){
+        for(int i = 0; i < s->boards[output[k]].height; i++){
+            for(int j = 0; j < s->boards[output[k]].width; j++){
+                printf("%c", s->boards[output[k]].tiles[i * s->boards[output[k]].width + j]);
             }
             printf("\n");
         }
@@ -264,11 +264,11 @@ bool finalPath(const board* b){
 }
 
 
-void widenBoard(state* s, int col, int parentIndex){
+void widenBoard(state* s, int j, int parentIndex){
     board* newBoard = &s->boards[s->r + 1];
     board* cur = &s->boards[parentIndex];
 
-    fallHawk(newBoard, cur, col);
+    fallHawk(newBoard, cur, j);
     newBoard->parent = parentIndex;
 }
 
@@ -300,8 +300,8 @@ int solve(state* s, bool verbose){
     while (s->f <= s->r && s->r < MAXBRDS - 1){
         board* cur = &s->boards[s->f];
 
-        for (int col = 0; col < cur->width; col++){
-            widenBoard(s, col, s->f);
+        for (int j = 0; j < cur->width; j++){
+            widenBoard(s, j, s->f);
             board* newBoard = &s->boards[s->r + 1];
 
             if (repeatedBoard(s, newBoard) == 0){
