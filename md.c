@@ -1,48 +1,63 @@
 #include "mydefs.h"
 
 
-bool file2str(const char* fname, char* str) {
-    // Step 1: if the pointer passed in is empty 
+void fillLines(FILE* fp, char* str, int* index){
+    // plus 2 extra space for "\n" and "\0" 
+    char line[BRDSZ + EXTRASPACE];
+    while (fgets(line, sizeof(line), fp)){
+        int len = strlen(line);
+        
+        if (len > 0 && line[len-1] == '\n'){
+            line[len-1] = '\0';
+            len--;
+        }
+
+        // copy the line's characters to 'str'
+        for (int i = 0; i < len; i++){
+            str[*index] = line[i];
+            (*index)++;
+        }
+        // add '-' after each line
+        str[*index] = '-';
+        (*index)++;
+    }
+}
+
+
+void finalizeStr(char* str, int* index){
+    //remove last '-' and append '\0'
+    if (*index > 0){
+        str[*index - 1] = '\0';
+    }
+}
+
+
+bool file2str(const char* fname, char* str){
+    // if the pointer passed in is empty 
     if(fname == NULL || str == NULL){
         return false;
     }
 
-    // Step 2: whether the fname is exist
+    // whether the fname is exist
     FILE* fp = fopen(fname, "r");
     if(fp == NULL){
         return false;
     }
 
-    // Step 3: create an array to store the str
+    // create an array to store the str
     // plus 2 extra space for "\n" and "\0" 
     char line[BRDSZ + EXTRASPACE];
     int index = 0;
 
-    // Step 4: to read the hawk and store it in the first position
+    // to read the hawk and store it in the first position
     if(fgets(line, sizeof(line), fp)){
         str[index++] = line[0];
         str[index++] = '-';
     }
 
-    // Step 5: to read every line and store the letter in str
-    while(fgets(line, sizeof(line), fp)){
-        int len = strlen(line);
-	
-        if(len > 0 && line[len-1] == '\n'){
-            line[len-1] = '\0';
-            len--;
-        }
+    fillLines(fp, str, &index);
 
-        for(int i = 0; i < len; i++){
-            str[index++] = line[i];
-        }
-        str[index++] = '-';
-    }
-
-    // Step 6: to remove the last "-" and add "\0" to end the str
-    if(index > 0){
-        str[index-1] = '\0';
-    }
+    finalizeStr(str, &index);
 
     fclose(fp);
     return true;
@@ -57,86 +72,97 @@ bool validChar(char c){
 }
 
 
-state* str2state(const char* str) {
-    // Step 1: if the pointer passed in is empty
-    if(str ==  NULL){
+state* initializeState(const char* str){
+    if (str == NULL || isupper(str[0]) == 0){
         return NULL;
     }
 
-    // Step 2:check that the first character (hawk) is uppercase
-    if(isupper(str[0]) == 0){
-        return NULL;
-    }
-
-    // Step 3: malloc a space for pointer s
     state* s = (state*)malloc(sizeof(state));
-    // check whether the pointer space is allocated successfully
-    if(s == NULL){
+    if (s == NULL) {
         return NULL;
     }
 
-    // Step 4：initialize the pointer
     s->r = 0;
     s->f = 0;
 
-    // Step 5：get the first board structure pointer in the state structure
-    board* original = &s->boards[0];
-    // indicates no parent node
-    original->parent = -1;
-    // indicates the column that has not been moved
-    original->moveCol = -1;
+    s->boards[0].parent = -1;
+    s->boards[0].moveCol = -1;
+    s->boards[0].hawk = str[0];
+    
+    return s;
+}
 
-    // to read the str
+
+int findWidth(const char* str){
+    int width = 0;
     const char* ch = str;
-    original->hawk = *ch++;
-    // to skip the "-"
-    ch++;
 
-    // Step 6：to measure the width
-    const char* temp = ch;
-    original->width = 0;
-    while(*temp && *temp != '-'){
-        if(isupper(*temp) == 0){
-            free(s);
-            return NULL;
+    // count characters until a '-' or end of str
+    while (*ch && *ch != '-'){
+        if (isupper(*ch) == 0){
+            return -1; 
         }
-        original->width++;
-        temp++;
+        width++;
+        ch++;
     }
+    
+    return width;
+}
 
-    // Step 7：fill the letter in board
+
+bool fillBoard(board* original, const char* str){
     int index = 0;
     original->height = 0;
+    const char* ch = str;
 
-    while(*ch){
-        if(*ch == '-'){
+    while (*ch){
+        if (*ch == '-') {
             original->height++;
             ch++;
-        } 
-        else 
-        {
-            if(validChar(*ch) == 0){
-                free(s);
-                return NULL;
+        } else {
+            if (validChar(*ch) == 0){
+                return false;
             }
             original->tiles[index++] = *ch++;
         }
     }
     original->height++;
-
-    return s;
-
+    return true;
 }
 
 
+state* str2state(const char* str){
+    // initialize state and validate the hawk character
+    state* s = initializeState(str);
+    if (s == NULL){
+        return NULL;
+    }
 
-bool all_Matched(const board* b) {
-    // Step 1: if the pointer passed in is empty
+    // calculate board width
+    board* original = &s->boards[0];
+    original->width = findWidth(str + EXTRASPACE);
+    if (original->width == -1){
+        free(s);
+        return NULL;
+    }
+
+
+    if (fillBoard(original, str + EXTRASPACE) == 0){
+        free(s);
+        return NULL;
+    }
+
+    return s;
+}
+
+
+bool allMatched(const board* b){
+    // if the pointer passed in is empty
     if(b == NULL){
         return false;
     }
 
-    // Step 2: to check whether the characters in each column are the same
+    // to check whether the characters in each column are the same
     for(int col = 0; col < b->width; col++){
         char flagChar = b->tiles[col];
         for(int row = 1; row < b->height; row++){
@@ -149,9 +175,7 @@ bool all_Matched(const board* b) {
 }
 
 
-
-bool same_2Board(const board* b1, const board* b2){
-
+bool sameBoard(const board* b1, const board* b2){
     if(b1 == NULL || b2 == NULL){
         return false;
     }
@@ -171,8 +195,17 @@ bool same_2Board(const board* b1, const board* b2){
 }
 
 
+bool repeatedBoard(const state* s, const board* newBoard){
+    for (int i = 0; i <= s->r; i++){
+        if (sameBoard(newBoard, &s->boards[i])){
+            return true;
+        }
+    }
+    return false;
+}
 
-void fall_hawk(board* newBoard, const board* cur, int col){
+
+void fallHawk(board* newBoard, const board* cur, int col){
     memcpy(newBoard, cur, sizeof(board));
     newBoard->moveCol = col;
 
@@ -190,23 +223,24 @@ void fall_hawk(board* newBoard, const board* cur, int col){
 }
 
 
-
-void print_output(const state* s, int endIndex){
+void printOutput(const state* s, int endIndex){
     int output[MAXBRDS];
     int curIndex = endIndex;
     int length = 0;
 
-
+    // find path length by tracing back from end to start
     while(curIndex > 0){
         curIndex = s->boards[curIndex].parent;
     }
 
+    // record solution path from end to start
     curIndex = endIndex;
     while(curIndex >= 0){
         output[length++] = curIndex;
         curIndex = s->boards[curIndex].parent;
     }
 
+    // print it by order
     for(int i = length - 1; i >= 0; i--){
         for(int row = 0; row < s->boards[output[i]].height; row++){
             for(int col = 0; col < s->boards[output[i]].width; col++){
@@ -219,71 +253,83 @@ void print_output(const state* s, int endIndex){
 }
 
 
+void initializeBoard(state* s){
+    s->f = 0;
+    s->r = 0;
+}
+
+
+bool finalPath(const board* b){
+    return allMatched(b);
+}
+
+
+void widenBoard(state* s, int col, int parentIndex){
+    board* newBoard = &s->boards[s->r + 1];
+    board* cur = &s->boards[parentIndex];
+
+    fallHawk(newBoard, cur, col);
+    newBoard->parent = parentIndex;
+}
+
+
+int countMoveNum(const state* s, int endIndex){
+    int moveNum = 0;
+    int curIndex = endIndex;
+
+    while (curIndex > 0){
+        moveNum++;
+        curIndex = s->boards[curIndex].parent;
+    }
+    return moveNum;
+}
+
 
 int solve(state* s, bool verbose){
-    // Step 1: if the pointer passed in is empty
-    if(s == NULL){
+    if (s == NULL) {
         return -1;
     }
 
-    // Step 2: to check whether the letters in boards are all matched 
-    if(all_Matched(&s->boards[0])){
+    if (finalPath(&s->boards[0])){
         return 0;
     }
 
-    //initialize the pointers
-    s->f = 0;
-    s->r = 0;
+    initializeBoard(s);
 
-    while(s->f <= s->r && s->r < MAXBRDS - 1){
+    // start BFS-style search
+    while (s->f <= s->r && s->r < MAXBRDS - 1){
         board* cur = &s->boards[s->f];
 
-        for(int col = 0; col < cur->width; col++){
+        for (int col = 0; col < cur->width; col++){
+            widenBoard(s, col, s->f);
             board* newBoard = &s->boards[s->r + 1];
-            fall_hawk(newBoard, cur, col);
-            newBoard->parent = s->f;
 
-            bool repeatBoard = false;
-            for(int i = 0; i <= s->r && repeatBoard == false; i++){
-                if(same_2Board(newBoard, &s->boards[i])){
-                    repeatBoard = true;
-                }
-            }
-
-            if(repeatBoard == false){
+            if (repeatedBoard(s, newBoard) == 0){
                 s->r++;
 
-                if(all_Matched(newBoard)){
-                    int moveNum = 0;
-                    int curIndex = s->r;
-                    while(curIndex > 0){
-                        moveNum++;
-                        curIndex = s->boards[curIndex].parent;
-                    }
+                if (finalPath(newBoard)){
+                    int moveNum = countMoveNum(s, s->r);
 
-                    if(verbose == true){
-                        print_output(s, s->r);
+                    if (verbose){
+                        printOutput(s, s->r);
                     }
-
                     return moveNum;
-
                 }
             }
         }
-
         s->f++;
-
     }
 
+    // no method is found
     return -1;
 }
 
 
-
-void test(void) {
+void test(void){
 
     char str[MAXBRDS];
     state * s;
+
 
     //TEST 1: test str that already match the rules of the game
     strcpy(str, "B-A");
